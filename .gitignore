@@ -1,3 +1,23 @@
+# secrets & personal data — never commit
 .env
+session.json
+profile/
+!profile/README.md
+!profile/facts.example.md
+!profile/writing_style.example.md
+
+# caches / build
+**/.cache/
 __pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# scratch
+screenshots/
+*.png
 .DS_Store
