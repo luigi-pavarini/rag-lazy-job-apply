@@ -157,6 +157,69 @@ def load_profile(profile_dir: Path | None = None) -> str:
     return "\n\n".join(sections).strip()
 
 
+def _split_chunks(text: str, max_chars: int = 900) -> list[str]:
+    """Split a section into paragraph-sized chunks, keeping paragraphs whole."""
+    out: list[str] = []
+    buf = ""
+    for para in text.split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        if len(buf) + len(para) + 2 <= max_chars:
+            buf = f"{buf}\n\n{para}" if buf else para
+        else:
+            if buf:
+                out.append(buf)
+            buf = para if len(para) <= max_chars else para[:max_chars]
+    if buf:
+        out.append(buf)
+    return out
+
+
+def load_chunks(profile_dir: Path | None = None) -> list[dict]:
+    """Return the profile as retrievable chunks.
+
+    Each chunk is {"text": str, "pin": bool}. Pinned chunks (facts + writing
+    style) are always included; the rest form the pool the retriever searches.
+    Facts and writing style are short and essential, so they never get dropped.
+    """
+    base = Path(profile_dir) if profile_dir else PROFILE_DIR
+    if not base.exists():
+        return []
+    chunks: list[dict] = []
+
+    facts = _read_if_exists(base / "facts.md")
+    if facts.strip():
+        chunks.append({"text": "# FACTS\n" + facts.strip(), "pin": True})
+    style = _read_if_exists(base / "writing_style.md")
+    if style.strip():
+        chunks.append({"text": "# WRITING STYLE\n" + style.strip(), "pin": True})
+
+    # Answers and documents: searchable pool, chunked.
+    answers_dir = base / "answers"
+    if answers_dir.is_dir():
+        for f in sorted(answers_dir.glob("*.md")):
+            for c in _split_chunks(f.read_text(errors="ignore")):
+                chunks.append({"text": f"[answer:{f.stem}] {c}", "pin": False})
+
+    reserved = {"facts.md", "writing_style.md", "readme.md",
+                "facts.example.md", "writing_style.example.md"}
+    doc_ext = _PDF_EXT | _XML_EXT | _TEXT_EXT
+    for sub in ("resume", "linkedin", "lattes"):
+        d = base / sub
+        if d.is_dir():
+            for f in sorted(d.iterdir()):
+                if f.is_file() and f.suffix.lower() in doc_ext:
+                    for c in _split_chunks(_extract(f)):
+                        chunks.append({"text": f"[{sub}:{f.name}] {c}", "pin": False})
+    for f in sorted(base.iterdir()):
+        if f.is_file() and f.name.lower() not in reserved and f.suffix.lower() in doc_ext:
+            for c in _split_chunks(_extract(f)):
+                chunks.append({"text": f"[doc:{f.name}] {c}", "pin": False})
+
+    return chunks
+
+
 def profile_summary(profile_dir: Path | None = None) -> str:
     base = Path(profile_dir) if profile_dir else PROFILE_DIR
     if not base.exists():

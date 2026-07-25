@@ -18,6 +18,9 @@ Absolute rules:
 - Match the language of the field/page. If the page is Portuguese, answer in
   Portuguese; if English, answer in English. When ambiguous, use Portuguese (BR).
 - Keep answers concise and specific. No corporate filler, no em-dashes.
+- Sound like a real person, not like AI. No ready-made template sentences, no
+  clichés. Be brief and straight to the point. Do not overload with information,
+  pick the one or two things that matter and stop.
 
 Return ONLY valid JSON, no prose, matching exactly:
 {"fields":[{"id":<int>,"label":<string>,"action":"fill_value|generate|ask_user|skip",
@@ -57,6 +60,8 @@ Rules:
 - Match the posting's language (Portuguese or English; PT-BR when ambiguous).
 - Ground everything in the real profile. Never invent employers, metrics, or dates.
 - Tight: about 3 short paragraphs, 150-220 words. Output ONLY the letter text.
+- Sound like a real person, not like AI. No ready-made template sentences, no
+  clichés. Straight to the point, no information overload.
 """
 
 

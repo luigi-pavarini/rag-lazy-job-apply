@@ -1,14 +1,20 @@
-# lazyapply
+# rag-lazy-job-apply
 
-A terminal copilot for job applications. It attaches to your real Chrome, reads the
-form on the tab you are looking at, and tells you what to put in each field, in your
-own voice, drawn from your CV / LinkedIn / Lattes. Numbered badges appear on the page
-so "balloon (3)" is pointed at. `fill 3` types it for you.
+A RAG-powered terminal **copilot** for job applications (a human-in-the-loop assistant,
+not an autonomous agent). It attaches to your real Chrome, reads the form on the tab you
+are looking at, and tells you what to put in each field, in your own voice, drawn from
+your CV / LinkedIn / Lattes. Numbered badges appear on the page so "balloon (3)" is
+pointed at. `fill 3` types it for you.
 
 You stay in control. **It never clicks Apply or Submit** — that is always yours.
 
-100% free and offline by default: the brain is a local model via [Ollama](https://ollama.com).
-No API key, no credit card, no signup. Your CV never leaves your machine.
+**RAG:** your profile is chunked and embedded locally; for each field only the most
+relevant chunks are retrieved and fed to the model (facts and writing style are always
+included). This keeps prompts small and fast and scales as your profile grows.
+
+100% free and offline by default: both the chat model and the embeddings run locally via
+[Ollama](https://ollama.com). No API key, no credit card, no signup. Your CV never leaves
+your machine.
 
 ## Setup
 
@@ -17,9 +23,10 @@ No API key, no credit card, no signup. Your CV never leaves your machine.
 pip install -e .
 playwright install chromium   # only needed for offline tests / fallback; you use your own Chrome to browse
 
-# 2. Local model (free)
+# 2. Local models (free) — a small chat model + an embedding model for RAG
 #    install Ollama from https://ollama.com, then:
-ollama pull qwen2.5:7b
+ollama pull qwen2.5:3b
+ollama pull nomic-embed-text
 
 # 3. Your profile
 cp profile/facts.example.md profile/facts.md
@@ -56,7 +63,10 @@ All optional (defaults are free/offline). Put overrides in `.env`:
 | Variable | Default | Notes |
 |---|---|---|
 | `LAZYAPPLY_BACKEND` | `ollama` | `ollama` \| `gemini` \| `groq` |
-| `LAZYAPPLY_MODEL` | `qwen2.5:7b` | any pulled Ollama model, or a cloud model id |
+| `LAZYAPPLY_MODEL` | `qwen2.5:3b` | any pulled Ollama model, or a cloud model id |
+| `LAZYAPPLY_EMBED_MODEL` | `nomic-embed-text` | Ollama embedding model for RAG |
+| `LAZYAPPLY_RETRIEVAL_K` | `6` | how many chunks to retrieve per field |
+| `LAZYAPPLY_USE_RETRIEVAL` | `1` | set `0` to disable RAG (stuff whole profile) |
 | `LAZYAPPLY_CDP_URL` | `http://localhost:9222` | Chrome debug endpoint |
 | `GEMINI_API_KEY` / `GROQ_API_KEY` | – | free-tier keys, only if you opt into those backends |
 

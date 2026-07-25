@@ -35,9 +35,23 @@ class Config:
     # backend: "ollama" (default, free/offline), "gemini", or "groq".
     backend: str = field(default_factory=lambda: _env("LAZYAPPLY_BACKEND", "ollama"))
     # Text model used for analysing the form and writing answers.
-    model: str = field(default_factory=lambda: _env("LAZYAPPLY_MODEL", "qwen2.5:7b"))
+    model: str = field(default_factory=lambda: _env("LAZYAPPLY_MODEL", "qwen2.5:3b"))
     # Optional vision model; only used if set and the backend supports images.
     vision_model: str = field(default_factory=lambda: _env("LAZYAPPLY_VISION_MODEL", ""))
+
+    # --- Retrieval (RAG) ---
+    # Embedding model (Ollama) used to fetch only the relevant profile chunks.
+    embed_model: str = field(
+        default_factory=lambda: _env("LAZYAPPLY_EMBED_MODEL", "nomic-embed-text")
+    )
+    # How many retrieved chunks to feed the model (on top of pinned facts/style).
+    retrieval_k: int = field(
+        default_factory=lambda: int(_env("LAZYAPPLY_RETRIEVAL_K", "6"))
+    )
+    # Set to "0" to disable retrieval and stuff the whole profile instead.
+    use_retrieval: bool = field(
+        default_factory=lambda: _env("LAZYAPPLY_USE_RETRIEVAL", "1") not in {"0", "false", "False"}
+    )
 
     ollama_host: str = field(
         default_factory=lambda: _env("OLLAMA_HOST", "http://localhost:11434")
@@ -57,9 +71,9 @@ class Config:
     )
 
     def summary(self) -> str:
-        vis = self.vision_model or "(none)"
+        rag = f"rag={self.embed_model}/k{self.retrieval_k}" if self.use_retrieval else "rag=off"
         return (
-            f"backend={self.backend} model={self.model} vision={vis} "
+            f"backend={self.backend} model={self.model} {rag} "
             f"cdp={self.cdp_url} profile={PROFILE_DIR}"
         )
 

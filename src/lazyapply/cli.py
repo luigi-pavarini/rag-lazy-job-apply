@@ -21,7 +21,8 @@ from rich.table import Table
 from . import adapters, browser, fill, llm, overlay, prompts
 from .config import CONFIG, PROFILE_DIR
 from .extract import PageForm, extract_form
-from .profile import load_profile, profile_summary
+from .profile import load_profile, load_chunks, profile_summary
+from .retrieval import Retriever
 
 console = Console()
 
@@ -46,6 +47,24 @@ class App:
         self.form: PageForm | None = None
         self.suggestions: list[llm.Suggestion] = []
         self.profile: str = load_profile()
+        self.retriever: Retriever | None = None
+
+    def _ensure_retriever(self) -> Retriever:
+        """Build the retriever lazily on first use (embeds once, then cached)."""
+        if self.retriever is None:
+            self.retriever = Retriever(load_chunks())
+            if CONFIG.use_retrieval:
+                self.retriever.build()
+        return self.retriever
+
+    def _context_for(self, query: str) -> str:
+        """Relevant profile context for a query, or full profile if RAG is off."""
+        if not CONFIG.use_retrieval:
+            return self.profile
+        r = self._ensure_retriever()
+        if not r.ready:
+            return self.profile
+        return r.context(query)
 
     # --- helpers ---
     def _find(self, sid: int):
@@ -76,9 +95,11 @@ class App:
                 f"[yellow]No profile loaded from {PROFILE_DIR}. "
                 "Personal fields will be marked ask.[/yellow]"
             )
+        query = f"{self.form.title} " + " ".join(f.label for f in self.form.fields)
+        context = await asyncio.to_thread(self._context_for, query)
         with console.status("thinking (local model)..."):
             self.suggestions = await asyncio.to_thread(
-                llm.analyze_form, self.form, self.profile
+                llm.analyze_form, self.form, context
             )
         self._render()
         submits = await fill.find_submit_buttons(page)
@@ -196,7 +217,8 @@ class App:
         ctx = ""
         if self.form:
             ctx = f"\nCurrent page: {self.form.title} ({self.form.url})"
-        user = f"{self.profile}\n{ctx}\n\nQuestion: {text}\nAnswer in the person's voice."
+        context = await asyncio.to_thread(self._context_for, text)
+        user = f"{context}\n{ctx}\n\nQuestion: {text}\nAnswer in the person's voice."
         with console.status("thinking..."):
             out = await asyncio.to_thread(llm.complete, prompts.SYSTEM, user)
         console.print(Panel(out.strip(), title="copilot"))
@@ -210,7 +232,8 @@ class App:
         except Exception:
             title, url, body = "", "", ""
         job_context = f"Title: {title}\nURL: {url}\n\nJob page text:\n{(body or '')[:4000]}"
-        user = prompts.build_cover(self.profile, job_context, notes)
+        context = await asyncio.to_thread(self._context_for, f"{title} {notes}")
+        user = prompts.build_cover(context, job_context, notes)
         with console.status("writing your cover letter (local model)..."):
             letter = await asyncio.to_thread(llm.complete, prompts.COVER_SYSTEM, user)
         letter = letter.strip()

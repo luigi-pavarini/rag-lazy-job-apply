@@ -1,7 +1,7 @@
 [project]
-name = "lazyapply"
+name = "rag-lazy-job-apply"
 version = "0.1.0"
-description = "A terminal copilot that sees your job-application page and tells you what to fill, in your voice."
+description = "A RAG-powered terminal copilot that reads your job-application page and tells you what to fill, in your voice."
 requires-python = ">=3.11"
 dependencies = [
     "playwright>=1.44",
