@@ -32,6 +32,7 @@ HELP = """[bold]commands[/bold]
   copy N         copy suggestion N's text to the clipboard
   highlight N    flash field N on the page
   save N         save suggestion N to profile/answers for reuse
+  cover [notes]  write a cover letter for the current job (copied to clipboard)
   ask <text>     ask the copilot about this page or role
   profile        show what profile data is loaded
   refresh        re-read the current tab
@@ -200,6 +201,25 @@ class App:
             out = await asyncio.to_thread(llm.complete, prompts.SYSTEM, user)
         console.print(Panel(out.strip(), title="copilot"))
 
+    async def cmd_cover(self, notes: str) -> None:
+        page = await self._page()
+        try:
+            title = await page.title()
+            url = page.url
+            body = await page.evaluate("() => document.body.innerText")
+        except Exception:
+            title, url, body = "", "", ""
+        job_context = f"Title: {title}\nURL: {url}\n\nJob page text:\n{(body or '')[:4000]}"
+        user = prompts.build_cover(self.profile, job_context, notes)
+        with console.status("writing your cover letter (local model)..."):
+            letter = await asyncio.to_thread(llm.complete, prompts.COVER_SYSTEM, user)
+        letter = letter.strip()
+        console.print(Panel(letter, title="cover letter", subtitle="copied to clipboard"))
+        try:
+            subprocess.run(["pbcopy"], input=letter.encode(), check=True)
+        except Exception:
+            console.print("[dim](could not copy automatically, select the text above)[/dim]")
+
     async def _confirm(self, msg: str) -> bool:
         ans = await self._psession.prompt_async(msg)
         return ans.strip().lower() in {"y", "yes", "s", "sim"}
@@ -238,6 +258,8 @@ class App:
                         self.cmd_copy(arg)
                     elif cmd == "save":
                         self.cmd_save(arg)
+                    elif cmd == "cover":
+                        await self.cmd_cover(arg)
                     elif cmd == "ask":
                         await self.cmd_ask(arg)
                     elif cmd == "profile":

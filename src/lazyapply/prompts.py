@@ -47,6 +47,28 @@ FORM FIELDS (fill these)
 Produce the JSON now."""
 
 
+COVER_SYSTEM = """You write a cover letter for ONE person using the profile below,
+in their own voice. Follow their cover-letter guide if present in the profile.
+
+Rules:
+- Direct and human, no corporate filler, no em-dashes. Short paragraphs.
+- Aim it at the specific company and role from the job context. Name them, and
+  connect one or two of the person's REAL experiences to what the company does.
+- Match the posting's language (Portuguese or English; PT-BR when ambiguous).
+- Ground everything in the real profile. Never invent employers, metrics, or dates.
+- Tight: about 3 short paragraphs, 150-220 words. Output ONLY the letter text.
+"""
+
+
+def build_cover(profile: str, job_context: str, notes: str) -> str:
+    extra = f"\nExtra instructions from the person: {notes}\n" if notes.strip() else ""
+    return (
+        f"PROFILE\n=======\n{profile.strip()}\n\n"
+        f"JOB CONTEXT\n===========\n{job_context.strip()}\n{extra}\n"
+        "Write the cover letter now."
+    )
+
+
 def build_task(profile: str, url: str, title: str, lang: str, fields: str) -> str:
     prof = profile.strip() or "(no profile provided — use action=ask_user for personal fields)"
     return TASK.format(
