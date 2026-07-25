@@ -21,3 +21,6 @@ venv/
 screenshots/
 *.png
 .DS_Store
+
+# rejected first attempt — kept locally, not published (contains personal data)
+old/

@@ -16,6 +16,34 @@ included). This keeps prompts small and fast and scales as your profile grows.
 [Ollama](https://ollama.com). No API key, no credit card, no signup. Your CV never leaves
 your machine.
 
+## What this is (and isn't)
+
+It is a **copilot**, a human-in-the-loop assistant, not an autonomous agent. It
+perceives (reads the page) and acts (types into a field) **only on your explicit
+command**, and it never decides to submit. The human stays in the loop by design:
+
+- It suggests; you approve each `fill`.
+- It **never** clicks Apply or Submit. That is always your manual action.
+- On job boards it does nothing until you are on an actual application form.
+
+## How it works
+
+```
+your Chrome (CDP) ──> read the form ──> build a query from the field labels
+                                              │
+your profile ──> chunk + embed (local) ──> retrieve top-k relevant chunks (RAG)
+                                              │
+                          facts + writing style (pinned) + retrieved chunks
+                                              │
+                                    local LLM (Ollama) ──> per-field suggestions
+                                              │
+                          numbered badges on the page + a table in the terminal
+                                              │
+                    you: fill / copy / cover / save   (you click Apply yourself)
+```
+
+Everything runs locally. No API key, no data leaving the machine.
+
 ## Setup
 
 ```bash
