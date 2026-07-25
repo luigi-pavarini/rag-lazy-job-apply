@@ -19,7 +19,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import adapters, browser, fill, llm, overlay, prompts
-from .config import CONFIG, PROFILE_DIR
+from .config import CONFIG, PROFILE_DIR, REPO_DIR
 from .extract import PageForm, extract_form
 from .profile import load_profile, load_chunks, profile_summary
 from .retrieval import Retriever
@@ -33,7 +33,7 @@ HELP = """[bold]commands[/bold]
   copy N         copy suggestion N's text to the clipboard
   highlight N    flash field N on the page
   save N         save suggestion N to profile/answers for reuse
-  cover [notes]  write a cover letter for the current job (copied to clipboard)
+  cover [notes]  write a cover letter for the job (clipboard + PDF in covers/)
   ask <text>     ask the copilot about this page or role
   profile        show what profile data is loaded
   refresh        re-read the current tab
@@ -242,6 +242,18 @@ class App:
             subprocess.run(["pbcopy"], input=letter.encode(), check=True)
         except Exception:
             console.print("[dim](could not copy automatically, select the text above)[/dim]")
+        # Save a PDF (for upload fields) and a .txt next to it.
+        from datetime import date
+        from . import export
+
+        stem = f"{export.slugify(title)}-{date.today().isoformat()}"
+        covers = REPO_DIR / "covers"
+        try:
+            pdf_path = export.to_pdf(letter, covers / f"{stem}.pdf")
+            (covers / f"{stem}.txt").write_text(letter)
+            console.print(f"[green]saved PDF -> {pdf_path}[/green]  [dim](upload this)[/dim]")
+        except Exception as e:  # noqa: BLE001
+            console.print(f"[yellow]could not write PDF ({e}); text is on your clipboard[/yellow]")
 
     async def _confirm(self, msg: str) -> bool:
         ans = await self._psession.prompt_async(msg)

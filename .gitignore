@@ -24,3 +24,6 @@ screenshots/
 
 # rejected first attempt — kept locally, not published (contains personal data)
 old/
+
+# generated cover letters (personal)
+covers/

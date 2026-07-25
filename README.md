@@ -79,8 +79,13 @@ you> get            # reads the tab, draws badges, suggests each field
 you> fill 1         # types suggestion 1 into its field
 you> copy 3         # copy a written answer to the clipboard
 you> save 3         # remember this answer for next time
+you> cover          # write a cover letter for this job
 you> ask why should I mention my thesis here?
 ```
+
+`cover` copies the letter to your clipboard **and** saves a ready-to-upload PDF
+(plus a .txt) under `covers/`, so you can paste it or attach the file. Add notes
+to steer it, e.g. `cover emphasize my fraud modeling` or `cover in english`.
 
 You review everything and click Apply yourself.
 
