@@ -19,7 +19,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
-from . import adapters, browser, fill, llm, overlay, prompts
+from . import adapters, browser, fill, identity, llm, overlay, prompts
 from .config import CONFIG, PROFILE_DIR, REPO_DIR
 from .extract import PageForm, extract_form
 from .profile import load_profile, load_chunks, profile_summary
@@ -98,12 +98,32 @@ class App:
                 f"[yellow]No profile loaded from {PROFILE_DIR}. "
                 "Personal fields will be marked ask.[/yellow]"
             )
+        # Identity fields (name/email/LinkedIn/phone/city/salary) come straight
+        # from facts, independent of the LLM, so they always work.
+        facts = identity.load_identity()
+        det = identity.deterministic_suggestions(self.form, facts)
+
         query = f"{self.form.title} " + " ".join(f.label for f in self.form.fields)
         context = await asyncio.to_thread(self._context_for, query)
-        with console.status("thinking (local model)..."):
-            self.suggestions = await asyncio.to_thread(
-                llm.analyze_form, self.form, context
+        llm_suggestions: list[llm.Suggestion] = []
+        try:
+            with console.status("thinking (local model)..."):
+                llm_suggestions = await asyncio.to_thread(
+                    llm.analyze_form, self.form, context
+                )
+        except llm.LLMError as e:
+            console.print(f"[yellow]model had trouble ({e}); showing what I can.[/yellow]")
+
+        # Merge: LLM answers for open questions, facts win for identity fields.
+        by_id: dict[int, llm.Suggestion] = {s.id: s for s in llm_suggestions}
+        by_id.update(det)
+        # Any field with no suggestion at all becomes an explicit "ask".
+        for f in self.form.fields:
+            by_id.setdefault(
+                f.id,
+                llm.Suggestion(f.id, f.label, "ask_user", "", "needs your input", 0.0),
             )
+        self.suggestions = [by_id[k] for k in sorted(by_id)]
         self._render()
         submits = await fill.find_submit_buttons(page)
         if submits:
