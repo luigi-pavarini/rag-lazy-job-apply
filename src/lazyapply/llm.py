@@ -26,7 +26,7 @@ class LLMError(RuntimeError):
 
 
 # --- Backends -----------------------------------------------------------------
-def _ollama_complete(system: str, user: str) -> str:
+def _ollama_complete(system: str, user: str, json_mode: bool = False) -> str:
     url = CONFIG.ollama_host.rstrip("/") + "/api/chat"
     payload = {
         "model": CONFIG.model,
@@ -37,6 +37,8 @@ def _ollama_complete(system: str, user: str) -> str:
             {"role": "user", "content": user},
         ],
     }
+    if json_mode:
+        payload["format"] = "json"
     try:
         r = httpx.post(url, json=payload, timeout=CONFIG.request_timeout)
         r.raise_for_status()
@@ -49,28 +51,31 @@ def _ollama_complete(system: str, user: str) -> str:
     return r.json().get("message", {}).get("content", "")
 
 
-def _groq_complete(system: str, user: str) -> str:
+def _groq_complete(system: str, user: str, json_mode: bool = False) -> str:
     if not CONFIG.groq_api_key:
         raise LLMError("GROQ_API_KEY is not set.")
     url = "https://api.groq.com/openai/v1/chat/completions"
+    body = {
+        "model": CONFIG.model,
+        "temperature": 0.3,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }
+    if json_mode:
+        body["response_format"] = {"type": "json_object"}
     r = httpx.post(
         url,
         headers={"Authorization": f"Bearer {CONFIG.groq_api_key}"},
-        json={
-            "model": CONFIG.model,
-            "temperature": 0.3,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        },
+        json=body,
         timeout=CONFIG.request_timeout,
     )
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
 
 
-def _gemini_complete(system: str, user: str) -> str:
+def _gemini_complete(system: str, user: str, json_mode: bool = False) -> str:
     if not CONFIG.gemini_api_key:
         raise LLMError("GEMINI_API_KEY is not set.")
     model = CONFIG.model or "gemini-1.5-flash"
@@ -99,13 +104,13 @@ _BACKENDS = {
 }
 
 
-def complete(system: str, user: str) -> str:
+def complete(system: str, user: str, json_mode: bool = False) -> str:
     fn = _BACKENDS.get(CONFIG.backend)
     if fn is None:
         raise LLMError(
             f"Unknown backend '{CONFIG.backend}'. Choose one of: {', '.join(_BACKENDS)}."
         )
-    return fn(system, user)
+    return fn(system, user, json_mode)
 
 
 # --- Response parsing ---------------------------------------------------------
@@ -122,32 +127,54 @@ class Suggestion:
 _VALID_ACTIONS = {"fill_value", "generate", "ask_user", "skip"}
 
 
-def _extract_json(text: str) -> dict[str, Any]:
+def _iter_json_values(text: str):
+    """Yield every top-level JSON value in text.
+
+    Small models often emit several bare objects, an NDJSON stream, or a JSON
+    value wrapped in prose. raw_decode lets us read them one after another and
+    skip any junk in between, instead of demanding one perfectly-formed object.
+    """
+    dec = json.JSONDecoder()
+    i, n = 0, len(text)
+    while i < n:
+        while i < n and text[i] not in "{[":
+            i += 1
+        if i >= n:
+            return
+        try:
+            obj, end = dec.raw_decode(text, i)
+            yield obj
+            i = end
+        except json.JSONDecodeError:
+            i += 1
+
+
+def _collect_field_dicts(text: str) -> list[dict]:
+    """Flatten whatever JSON shape the model returned into a list of field dicts."""
     text = text.strip()
-    # Strip code fences if present.
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     if fence:
         text = fence.group(1).strip()
-    # Grab the outermost {...}.
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end < start:
-        raise LLMError(f"No JSON object found in model output:\n{text[:400]}")
-    blob = text[start : end + 1]
-    try:
-        return json.loads(blob)
-    except json.JSONDecodeError as e:
-        raise LLMError(f"Model returned invalid JSON: {e}\n{blob[:400]}") from e
+    fields: list[dict] = []
+    for val in _iter_json_values(text):
+        if isinstance(val, dict):
+            if isinstance(val.get("fields"), list):
+                fields.extend(x for x in val["fields"] if isinstance(x, dict))
+            elif "id" in val:
+                fields.append(val)
+        elif isinstance(val, list):
+            fields.extend(x for x in val if isinstance(x, dict) and "id" in x)
+    return fields
 
 
 def parse_suggestions(text: str) -> list[Suggestion]:
-    data = _extract_json(text)
-    raw = data.get("fields")
-    if not isinstance(raw, list):
-        raise LLMError('Model JSON missing a "fields" list.')
+    raw = _collect_field_dicts(text)
+    if not raw:
+        raise LLMError(f"No usable JSON fields in model output:\n{text[:400]}")
+    seen: set[int] = set()
     out: list[Suggestion] = []
     for item in raw:
-        if not isinstance(item, dict) or "id" not in item:
+        if "id" not in item:
             raise LLMError(f"Bad field entry (no id): {item!r}")
         action = str(item.get("action", "skip"))
         if action not in _VALID_ACTIONS:
@@ -156,9 +183,16 @@ def parse_suggestions(text: str) -> list[Suggestion]:
             conf = float(item.get("confidence", 0.0))
         except (TypeError, ValueError):
             conf = 0.0
+        try:
+            fid = int(item["id"])
+        except (TypeError, ValueError):
+            continue
+        if fid in seen:  # models sometimes repeat a field; keep the first
+            continue
+        seen.add(fid)
         out.append(
             Suggestion(
-                id=int(item["id"]),
+                id=fid,
                 label=str(item.get("label", "")),
                 action=action,
                 value=str(item.get("value", "")),
@@ -177,5 +211,5 @@ def analyze_form(form: PageForm, profile: str) -> list[Suggestion]:
         lang=form.lang,
         fields=fields_to_prompt(form),
     )
-    raw = complete(prompts.SYSTEM, user)
+    raw = complete(prompts.SYSTEM, user, json_mode=True)
     return parse_suggestions(raw)

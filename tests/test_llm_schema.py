@@ -29,6 +29,28 @@ def test_bad_confidence_is_zero():
     assert parse_suggestions(raw)[0].confidence == 0.0
 
 
+def test_concatenated_objects_no_wrapper():
+    # The exact shape qwen2.5:3b produced live: separate objects, no "fields" key.
+    raw = (
+        '{"id":1,"label":"Search","action":"skip","value":"","confidence":0.9}\n'
+        '{"id":2,"label":"Why us?","action":"generate","value":"I like it","confidence":0.8}'
+    )
+    out = parse_suggestions(raw)
+    assert [s.id for s in out] == [1, 2]
+    assert out[1].value == "I like it"
+
+
+def test_bare_array():
+    raw = '[{"id":1,"action":"fill_value","value":"a@b.com"}]'
+    assert parse_suggestions(raw)[0].value == "a@b.com"
+
+
+def test_duplicate_ids_keep_first():
+    raw = '{"fields":[{"id":1,"value":"first"},{"id":1,"value":"second"}]}'
+    out = parse_suggestions(raw)
+    assert len(out) == 1 and out[0].value == "first"
+
+
 def test_no_json_raises():
     with pytest.raises(LLMError):
         parse_suggestions("I could not do that.")
