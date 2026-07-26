@@ -67,8 +67,8 @@ def match_value(label: str, facts: dict[str, str]) -> str | None:
             return facts.get("lastname") or (fn.split()[-1] if fn else None)
         if "full name" in norm or "nome completo" in norm:
             return fn or None
-        if "primeiro nome" in norm or norm in (
-            "nome", "name", "first name", "seu nome", "given name"
+        if norm == "name" or norm.startswith(
+            ("nome", "first name", "primeiro nome", "seu nome", "given name")
         ):
             return facts.get("firstname") or (fn.split()[0] if fn else None)
     return None

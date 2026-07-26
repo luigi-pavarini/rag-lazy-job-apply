@@ -76,9 +76,25 @@ class App:
         return s, f
 
     async def _page(self):
-        if self.session is None:
+        """Return the current tab, reconnecting if the old connection went stale.
+
+        Navigating or closing tabs can leave our attached page closed; rather than
+        crash, we drop the session and re-attach to whatever Chrome has open now.
+        """
+        if self.session is None or not self.session.browser.is_connected():
             self.session = await browser.connect()
-        return await browser.active_page(self.session)
+        try:
+            page = await browser.active_page(self.session)
+            # Probe it: a closed/stale page throws here, so we can recover.
+            await page.evaluate("() => 1")
+            return page
+        except Exception:
+            try:
+                await self.session.close()
+            except Exception:
+                pass
+            self.session = await browser.connect()
+            return await browser.active_page(self.session)
 
     # --- commands ---
     async def cmd_get(self) -> None:
