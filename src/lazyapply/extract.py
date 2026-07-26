@@ -25,6 +25,23 @@ _EXTRACT_JS = r"""
   };
   const text = (el) => (el ? (el.textContent || '').trim().replace(/\s+/g, ' ') : '');
 
+  // Question text that sits ABOVE a field (headings/paragraphs), common on
+  // form builders like Gupy where the prompt is not a real <label>.
+  const PLACEHOLDER_RE = /^(digite|selecione|escolha|informe|type here|select|choose|your answer)/i;
+  const questionAbove = (el) => {
+    let node = el;
+    for (let depth = 0; depth < 4 && node; depth++) {
+      let sib = node.previousElementSibling;
+      while (sib) {
+        const t = text(sib);
+        if (t && t.length >= 8 && !PLACEHOLDER_RE.test(t)) return t;
+        sib = sib.previousElementSibling;
+      }
+      node = node.parentElement;
+    }
+    return '';
+  };
+
   const labelFor = (el) => {
     // 1) explicit <label for=id>
     if (el.id) {
@@ -40,16 +57,22 @@ _EXTRACT_JS = r"""
       const parts = lb.split(/\s+/).map(id => text(document.getElementById(id))).filter(Boolean);
       if (parts.length) return parts.join(' ');
     }
-    // 4) aria-label / placeholder / title / name
-    for (const a of ['aria-label', 'placeholder', 'title', 'name']) {
-      const v = el.getAttribute(a);
-      if (v && v.trim()) return v.trim();
-    }
-    // 5) nearest preceding label-ish text in the field's group
+    // 4) aria-label
+    const al = el.getAttribute('aria-label');
+    if (al && al.trim()) return al.trim();
+    // 5) a real <label>/<legend> in the field's group
     const group = el.closest('div,section,fieldset,li,tr') || el.parentElement;
     if (group) {
       const lg = group.querySelector('label, legend');
       if (lg && text(lg)) return text(lg);
+    }
+    // 6) the question heading/paragraph sitting above the field
+    const q = questionAbove(el);
+    if (q) return q;
+    // 7) last resort: placeholder / title / name
+    for (const a of ['placeholder', 'title', 'name']) {
+      const v = el.getAttribute(a);
+      if (v && v.trim()) return v.trim();
     }
     return '';
   };
