@@ -15,6 +15,7 @@ from pathlib import Path
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
@@ -35,7 +36,7 @@ HELP = """[bold]commands[/bold]
   save N         save suggestion N to profile/answers for reuse
   cover [notes]  write a cover letter for the job (clipboard + PDF in covers/)
   ask <text>     ask the copilot about this page or role
-  profile        show what profile data is loaded
+  profile        show your facts on screen (roles, dates, links) for reference
   refresh        re-read the current tab
   help           this list
   quit           exit (your Chrome stays open)"""
@@ -223,6 +224,18 @@ class App:
             out = await asyncio.to_thread(llm.complete, prompts.SYSTEM, user)
         console.print(Panel(out.strip(), title="copilot"))
 
+    def cmd_profile(self) -> None:
+        """Show a readable view of the loaded facts (roles, dates, links)."""
+        console.print(f"[dim]{profile_summary()}[/dim]")
+        facts = (PROFILE_DIR / "facts.md")
+        if facts.exists():
+            console.print(Panel(Markdown(facts.read_text()), title="your facts"))
+        answers_dir = PROFILE_DIR / "answers"
+        if answers_dir.is_dir():
+            saved = sorted(f.stem for f in answers_dir.glob("*.md"))
+            if saved:
+                console.print(f"[dim]saved answers: {', '.join(saved)}[/dim]")
+
     async def cmd_cover(self, notes: str) -> None:
         page = await self._page()
         try:
@@ -298,7 +311,7 @@ class App:
                     elif cmd == "ask":
                         await self.cmd_ask(arg)
                     elif cmd == "profile":
-                        console.print(profile_summary())
+                        self.cmd_profile()
                     else:
                         console.print(f"[dim]unknown: {cmd} (try help)[/dim]")
                 except browser.BrowserError as e:
