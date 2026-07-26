@@ -35,7 +35,7 @@ class Config:
     # backend: "ollama" (default, free/offline), "gemini", or "groq".
     backend: str = field(default_factory=lambda: _env("LAZYAPPLY_BACKEND", "ollama"))
     # Text model used for analysing the form and writing answers.
-    model: str = field(default_factory=lambda: _env("LAZYAPPLY_MODEL", "qwen2.5:3b"))
+    model: str = field(default_factory=lambda: _env("LAZYAPPLY_MODEL", "qwen2.5:7b"))
     # Optional vision model; only used if set and the backend supports images.
     vision_model: str = field(default_factory=lambda: _env("LAZYAPPLY_VISION_MODEL", ""))
 

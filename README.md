@@ -53,7 +53,7 @@ playwright install chromium   # only needed for offline tests / fallback; you us
 
 # 2. Local models (free) — a small chat model + an embedding model for RAG
 #    install Ollama from https://ollama.com, then:
-ollama pull qwen2.5:3b
+ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 
 # 3. Your profile
@@ -96,7 +96,7 @@ All optional (defaults are free/offline). Put overrides in `.env`:
 | Variable | Default | Notes |
 |---|---|---|
 | `LAZYAPPLY_BACKEND` | `ollama` | `ollama` \| `gemini` \| `groq` |
-| `LAZYAPPLY_MODEL` | `qwen2.5:3b` | any pulled Ollama model, or a cloud model id |
+| `LAZYAPPLY_MODEL` | `qwen2.5:7b` | any pulled Ollama model, or a cloud model id |
 | `LAZYAPPLY_EMBED_MODEL` | `nomic-embed-text` | Ollama embedding model for RAG |
 | `LAZYAPPLY_RETRIEVAL_K` | `6` | how many chunks to retrieve per field |
 | `LAZYAPPLY_USE_RETRIEVAL` | `1` | set `0` to disable RAG (stuff whole profile) |
