@@ -255,17 +255,19 @@ class App:
             console.print("usage: answer N [extra guidance]   (regenerates field N)")
             return
         sid = int(parts[0])
-        hint = parts[1] if len(parts) > 1 else ""
+        hint = parts[1].strip() if len(parts) > 1 else ""
         s, f = self._find(sid)
-        question = (f.label if f else "") or (s.label if s else "")
+        label = (f.label if f else "") or (s.label if s else "")
+        # In chat-style interviews the real question is what YOU pass as the hint,
+        # not the (often empty) field label. Prefer the hint as the question.
+        question = hint or label
         if not question:
-            console.print(f"[red]no field {sid}[/red]")
+            console.print("usage: answer N <the question / topic>   (esp. for chat interviews)")
             return
-        context = await asyncio.to_thread(self._context_for, f"{question} {hint}")
+        context = await asyncio.to_thread(self._context_for, f"{label} {hint}".strip())
         user = (
             f"{context}\n\nApplication question: {question}\n"
-            + (f"Extra guidance: {hint}\n" if hint else "")
-            + "Write the answer now."
+            "Write the answer now."
         )
         with console.status("writing a focused answer (local model)..."):
             out = await asyncio.to_thread(llm.complete, prompts.ANSWER_SYSTEM, user)
