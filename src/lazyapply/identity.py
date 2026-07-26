@@ -33,6 +33,8 @@ def load_identity(profile_dir: Path | None = None) -> dict[str, str]:
         "phone": find(r"Phone[^:\n]*:\s*([+\d][\d ()\-]{6,})"),
         "linkedin": find(r"(https?://[^\s]*linkedin\.com/in/[^\s]+)"),
         "github": find(r"(https?://[^\s]*github\.com/[^\s]+)"),
+        "linktree": find(r"(https?://[^\s]*linktr\.ee/[^\s]+)"),
+        "resume_url": find(r"Resume[^\n:]*URL[^:\n]*:\s*(https?://[^\s]+)"),
         "city": find(r"City[^:\n]*:\s*([^\n]+)"),
         "address": find(r"(?:Address|Endere[cç]o)[^:\n]*:\s*([^\n]+)"),
         "salary_brl": find(r"Salary expectation \(Brazil\):\s*([^\n]+)"),
@@ -49,6 +51,13 @@ def match_value(label: str, facts: dict[str, str]) -> str | None:
         return facts.get("linkedin")
     if "github" in l:
         return facts.get("github")
+    if "linktree" in l or ("other" in l and "url" in l) or "outro" in l:
+        return facts.get("linktree")
+    # Resume/CV link (a URL field), not the same as an upload button.
+    if ("resume" in l or "currícul" in l or "curricul" in l or "cv" in l) and (
+        "url" in l or "link" in l or "http" in l
+    ):
+        return facts.get("resume_url")
     if "e-mail" in l or "email" in l:
         return facts.get("email")
     if any(w in l for w in ("telefone", "celular", "phone", "fone", "whatsapp")):
