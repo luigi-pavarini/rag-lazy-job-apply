@@ -27,11 +27,14 @@ def load_identity(profile_dir: Path | None = None) -> dict[str, str]:
 
     facts = {
         "fullname": find(r"Full name:\s*([^\n]+)"),
+        "firstname": find(r"First name:\s*([^\n]+)"),
+        "lastname": find(r"Last name[^:\n]*:\s*([^\n]+)"),
         "email": find(r"Email[^:\n]*:\s*([^\s]+@[^\s]+)"),
         "phone": find(r"Phone[^:\n]*:\s*([+\d][\d ()\-]{6,})"),
         "linkedin": find(r"(https?://[^\s]*linkedin\.com/in/[^\s]+)"),
         "github": find(r"(https?://[^\s]*github\.com/[^\s]+)"),
         "city": find(r"City[^:\n]*:\s*([^\n]+)"),
+        "address": find(r"(?:Address|Endere[cç]o)[^:\n]*:\s*([^\n]+)"),
         "salary_brl": find(r"Salary expectation \(Brazil\):\s*([^\n]+)"),
     }
     return {k: v for k, v in facts.items() if v}
@@ -52,16 +55,22 @@ def match_value(label: str, facts: dict[str, str]) -> str | None:
         return facts.get("phone")
     if any(w in l for w in ("pretensão", "pretensao", "salár", "salario", "salary")):
         return facts.get("salary_brl")
+    if any(w in l for w in ("endereço", "endereco", "address", "logradouro")):
+        return facts.get("address") or facts.get("city")
     if any(w in l for w in ("cidade", "city", "localidade", "location")):
         return facts.get("city")
     fn = facts.get("fullname", "")
-    if fn:
-        if any(w in l for w in ("sobrenome", "last name", "surname", "família", "familia")):
-            return fn.split()[-1]
-        if "full name" in l or "nome completo" in l:
-            return fn
-        if l.strip() in ("nome", "name", "first name", "primeiro nome", "seu nome"):
-            return fn.split()[0]
+    if fn or facts.get("firstname") or facts.get("lastname"):
+        norm = l.replace("*", "").strip()  # labels often come as "*Nome"
+        # Surname (checked before first name; "sobrenome" contains "nome").
+        if any(w in norm for w in ("sobrenome", "last name", "surname", "família", "familia")):
+            return facts.get("lastname") or (fn.split()[-1] if fn else None)
+        if "full name" in norm or "nome completo" in norm:
+            return fn or None
+        if "primeiro nome" in norm or norm in (
+            "nome", "name", "first name", "seu nome", "given name"
+        ):
+            return facts.get("firstname") or (fn.split()[0] if fn else None)
     return None
 
 
