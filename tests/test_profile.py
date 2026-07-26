@@ -5,7 +5,7 @@ from lazyapply.profile import load_profile
 
 
 def _make_profile(tmp_path):
-    (tmp_path / "facts.md").write_text("- Email: luigi@example.com\n")
+    (tmp_path / "facts.md").write_text("- Email: jane@example.com\n")
     (tmp_path / "writing_style.md").write_text("No em-dashes. Short sentences.\n")
     resume = tmp_path / "resume"
     resume.mkdir()
@@ -21,7 +21,7 @@ def _make_profile(tmp_path):
 def test_load_includes_all_sections(tmp_path):
     base = _make_profile(tmp_path)
     blob = load_profile(base)
-    assert "luigi@example.com" in blob
+    assert "jane@example.com" in blob
     assert "No em-dashes" in blob
     assert "Windata" in blob
     assert "Boosting paper" in blob  # XML attribute flattened into text

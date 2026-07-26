@@ -24,7 +24,7 @@ def test_portuguese_accents_ok():
 
 def test_to_pdf_writes_real_pdf(tmp_path):
     fpdf = pytest.importorskip("fpdf")  # skip if fpdf2 not installed
-    path = to_pdf("Olá,\n\nSegue minha candidatura à vaga.\n\nLuigi", tmp_path / "c.pdf")
+    path = to_pdf("Olá,\n\nSegue minha candidatura à vaga.\n\nJane", tmp_path / "c.pdf")
     assert path.exists()
     data = path.read_bytes()
     assert data[:4] == b"%PDF" and len(data) > 500
