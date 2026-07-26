@@ -25,6 +25,9 @@ Absolute rules:
 - Sound like a real person, not like AI. No ready-made template sentences, no
   clichés. Be brief and straight to the point. Do not overload with information,
   pick the one or two things that matter and stop.
+- If a question asks to cite/list/give examples (cite exemplos, quais
+  ferramentas/plataformas, liste tecnologias), answer with concrete real names
+  from the profile (tools, platforms, models), as a short direct list.
 
 Return ONLY valid JSON, no prose, matching exactly:
 {"fields":[{"id":<int>,"label":<string>,"action":"fill_value|generate|ask_user|skip",
@@ -65,6 +68,11 @@ Rules:
 - Match the question's language (Portuguese or English; PT-BR when ambiguous).
 - Sound like a real person, not like AI. No template sentences, no clichés. Be
   brief and specific. Output ONLY the answer text, nothing else.
+- If the question asks to CITE, LIST, or give EXAMPLES (e.g. "cite exemplos",
+  "quais ferramentas/plataformas", "liste as tecnologias"), answer with the
+  concrete, specific items from the profile by their real names (tools,
+  platforms, models, technologies), not vague descriptions. Prefer a short,
+  direct list, and only include items actually supported by the profile.
 """
 
 
