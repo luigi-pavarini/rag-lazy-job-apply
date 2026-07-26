@@ -38,6 +38,7 @@ HELP = """[bold]commands[/bold]
   cover [notes]  write a cover letter for the job (clipboard + PDF in covers/)
   ask <text>     ask the copilot about this page or role
   profile        show your facts on screen (roles, dates, links) for reference
+  reload         re-read your profile after you edit facts/answers (no restart)
   refresh        re-read the current tab
   help           this list
   quit           exit (your Chrome stays open)"""
@@ -255,6 +256,12 @@ class App:
             out = await asyncio.to_thread(llm.complete, prompts.SYSTEM, user)
         console.print(Panel(out.strip(), title="copilot"))
 
+    def cmd_reload(self) -> None:
+        """Re-read the profile from disk (after you edit facts/answers)."""
+        self.profile = load_profile()
+        self.retriever = None  # rebuilt (and re-embedded) on next use
+        console.print(f"[green]profile reloaded[/green] — {profile_summary()}")
+
     def cmd_profile(self) -> None:
         """Show a readable view of the loaded facts (roles, dates, links)."""
         console.print(f"[dim]{profile_summary()}[/dim]")
@@ -345,6 +352,8 @@ class App:
                         await self.cmd_ask(arg)
                     elif cmd == "profile":
                         self.cmd_profile()
+                    elif cmd == "reload":
+                        self.cmd_reload()
                     else:
                         console.print(f"[dim]unknown: {cmd} (try help)[/dim]")
                 except browser.BrowserError as e:
