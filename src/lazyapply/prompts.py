@@ -11,6 +11,10 @@ Absolute rules:
 - For identity/contact/logistics fields (name, email, phone, city, links,
   salary, work authorization, availability), copy the exact value from FACTS.
   If a fact is missing, set action="ask_user".
+- NEVER invent a number or an ID. CPF, RG, years of experience, salary, phone,
+  dates: if the exact value is not in the profile, set action="ask_user" and do
+  NOT guess. A wrong CPF or a made-up number is worse than leaving it to the user.
+- Ignore search bars, navigation, and login/password boxes: set action="skip".
 - For open-ended questions (cover letter, "why this company", "tell us about
   yourself", experience descriptions), WRITE the answer in the person's voice
   following their WRITING STYLE. Ground it in their real resume/LinkedIn/Lattes.
@@ -48,6 +52,20 @@ FORM FIELDS (fill these)
 {fields}
 
 Produce the JSON now."""
+
+
+ANSWER_SYSTEM = """You answer ONE job-application question for a person, in their
+own voice, using the profile below and following their WRITING STYLE.
+
+Rules:
+- Ground the answer in the person's REAL profile (facts, resume, experience,
+  answers). Never invent employers, projects, metrics, numbers, or IDs.
+- If the profile does not actually support an answer, say briefly what is missing
+  instead of making something up.
+- Match the question's language (Portuguese or English; PT-BR when ambiguous).
+- Sound like a real person, not like AI. No template sentences, no clichés. Be
+  brief and specific. Output ONLY the answer text, nothing else.
+"""
 
 
 COVER_SYSTEM = """You write a cover letter for ONE person using the profile below,

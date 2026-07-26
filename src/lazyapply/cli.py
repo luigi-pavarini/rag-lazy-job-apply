@@ -34,6 +34,7 @@ HELP = """[bold]commands[/bold]
   copy N         copy suggestion N's text to the clipboard
   highlight N    flash field N on the page
   save N         save suggestion N to profile/answers for reuse
+  answer N [hint] regenerate ONE field's answer, focused on that question
   cover [notes]  write a cover letter for the job (clipboard + PDF in covers/)
   ask <text>     ask the copilot about this page or role
   profile        show your facts on screen (roles, dates, links) for reference
@@ -211,6 +212,36 @@ class App:
         path.write_text(f"Q: {s.label}\nA: {s.value}\n")
         console.print(f"[green]saved -> {path}[/green]")
 
+    async def cmd_answer(self, arg: str) -> None:
+        parts = arg.split(maxsplit=1)
+        if not parts or not parts[0].isdigit():
+            console.print("usage: answer N [extra guidance]   (regenerates field N)")
+            return
+        sid = int(parts[0])
+        hint = parts[1] if len(parts) > 1 else ""
+        s, f = self._find(sid)
+        question = (f.label if f else "") or (s.label if s else "")
+        if not question:
+            console.print(f"[red]no field {sid}[/red]")
+            return
+        context = await asyncio.to_thread(self._context_for, f"{question} {hint}")
+        user = (
+            f"{context}\n\nApplication question: {question}\n"
+            + (f"Extra guidance: {hint}\n" if hint else "")
+            + "Write the answer now."
+        )
+        with console.status("writing a focused answer (local model)..."):
+            out = await asyncio.to_thread(llm.complete, prompts.ANSWER_SYSTEM, user)
+        out = out.strip()
+        if s:  # update the row so `fill`/`copy`/`save` use the new text
+            s.value = out
+            s.action = "generate"
+        console.print(Panel(out, title=f"answer #{sid}", subtitle="copied to clipboard"))
+        try:
+            subprocess.run(["pbcopy"], input=out.encode(), check=True)
+        except Exception:
+            pass
+
     async def cmd_ask(self, text: str) -> None:
         if not text.strip():
             console.print("usage: ask <question>")
@@ -306,6 +337,8 @@ class App:
                         self.cmd_copy(arg)
                     elif cmd == "save":
                         self.cmd_save(arg)
+                    elif cmd == "answer":
+                        await self.cmd_answer(arg)
                     elif cmd == "cover":
                         await self.cmd_cover(arg)
                     elif cmd == "ask":
